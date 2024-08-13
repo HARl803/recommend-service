@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
+import xgboost as xgb
 import joblib
 
 # Django 프로젝트의 루트 디렉토리를 Python 경로에 추가
@@ -93,7 +94,13 @@ def train_model():
         y.loc[:, col] = le.fit_transform(y[col].astype(str)) # 종속 변수 라벨 인코딩
 
     # 서비스 초기 : 적은데이터로도 정확한 추천결과를 얻기 위해 RandomForest 사용해서 학습
-    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=200, max_depth=15, random_state=42))
+    # model = MultiOutputRegressor(RandomForestRegressor(n_estimators=200, max_depth=15, random_state=42))
+
+    # 서비스 중기 : 데이터가 많아지면 XGB 사용해서 모델학습
+    model = MultiOutputRegressor(xgb.XGBRegressor(n_estimators=200, max_depth=15, random_state=42))
+
+    # 서비스 발전 후 : 많은 계산 자원(GPU)가 있고, 데이터도 많다면 / 딥러닝의 MLP를 사용해서 모델학습
+    # 코드 작성 예정
     
     model.fit(X, y) # 모델 학습
 
@@ -102,7 +109,9 @@ def train_model():
     print(f'Cross-validation scores: {cv_scores}')
 
     # 모델 및 인코더 저장 (현재 파일이 위치한 디렉토리 내)
-    model_path = os.path.join(os.path.dirname(__file__), 'model_randomforest.pkl')
+    # model_path = os.path.join(os.path.dirname(__file__), 'model_randomforest.pkl')
+    model_path = os.path.join(os.path.dirname(__file__), 'model_xgb.pkl')
+    # model_path = os.path.join(os.path.dirname(__file__), 'model_deeplearning.pkl')
     joblib.dump((model, encoder, label_encoders), model_path)
 
 

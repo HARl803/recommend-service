@@ -19,7 +19,9 @@ def preview_data(request):
     return JsonResponse(sample_data, safe=False)
 
 # 인코더 및 모델 로드
-model_path = os.path.join(os.path.dirname(__file__), 'model_randomforest.pkl')
+# model_path = os.path.join(os.path.dirname(__file__), 'model_randomforest.pkl')
+model_path = os.path.join(os.path.dirname(__file__), 'model_xgb.pkl')
+# model_path = os.path.join(os.path.dirname(__file__), 'model_deeplearning.pkl')
 model, encoder, label_encoders = joblib.load(model_path)
 
 
