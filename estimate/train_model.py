@@ -1,6 +1,21 @@
+import os
+import sys
+import django
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
+import joblib
+
+# Django 프로젝트의 루트 디렉토리를 Python 경로에 추가
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(project_root)
+
+# Django 설정을 사용하기 위해 설정
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "AIserver.settings")
+django.setup()
 
 # Django 모델에서 데이터 가져오기
 from estimate.models import PC
@@ -62,3 +77,35 @@ def process_data():
     df = pd.concat([df.reset_index(drop=True), X_encoded_df.reset_index(drop=True)], axis=1) # 인코딩된 데이터프레임과 병합
 
     return df, encoder
+
+def train_model():
+    df, encoder = process_data() # 데이터 전처리 및 인코딩
+    
+    part_columns = ['cpu', 'motherboard', 'memory', 'gpu', 'ssd', 'case', 'power', 'cooler']
+    X = df.drop(columns=[f'{part}{attr}After' for part in part_columns for attr in ['Code', 'Name', 'Cost']] + ['totalCost']) # 독립변수
+    y = df[[f'{part}{attr}After' for part in part_columns for attr in ['Code', 'Name', 'Cost']] + ['totalCost']] # 종속변수
+    
+    X = X.fillna(-1) # 결측치 처리
+
+    # 종속 변수 인코딩
+    label_encoders = {col: LabelEncoder() for col in y.columns}
+    for col, le in label_encoders.items():
+        y.loc[:, col] = le.fit_transform(y[col].astype(str)) # 종속 변수 라벨 인코딩
+
+    # 서비스 초기 : 적은데이터로도 정확한 추천결과를 얻기 위해 RandomForest 사용해서 학습
+    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=200, max_depth=15, random_state=42))
+    
+    model.fit(X, y) # 모델 학습
+
+    kf = KFold(n_splits=5) # 5-폴드 교차 검증 설정
+    cv_scores = cross_val_score(model, X, y, cv=kf, scoring='neg_mean_squared_error') # 교차 검증 수행
+    print(f'Cross-validation scores: {cv_scores}')
+
+    # 모델 및 인코더 저장 (현재 파일이 위치한 디렉토리 내)
+    model_path = os.path.join(os.path.dirname(__file__), 'model_randomforest.pkl')
+    joblib.dump((model, encoder, label_encoders), model_path)
+
+
+# 모델 학습 및 저장을 위한 함수 호출
+if __name__ == '__main__':
+    train_model()

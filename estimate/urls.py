@@ -5,5 +5,6 @@ app_name = 'estimate'
 urlpatterns = [
     path('', views.index, name='index'),
     path('preview_data/', views.preview_data, name='preview_data'),
+    path('estimate/', views.pc_estimate, name='pc_estimate'),
 ]
 
